@@ -3,6 +3,7 @@ const express = require('express')
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const verifyToken = require("./verifyToken")
+const upload = require('./uploads')
 
 const mysql = require('mysql2')
 const db = mysql.createPool({
@@ -87,6 +88,24 @@ app.post('/room', verifyToken, async (req, res) => {
         room: rows[0]
     });
 
+})
+
+app.post('/messages', verifyToken, upload.single('media'), async (req, res) => {
+    const { content } = req.body;
+    const sender = req.room.roomname;
+    const roomId = req.room.roomId;
+    const file = req.file;
+
+    const mediaURL = req.file ? `/uploads/${req.file.filename}` : null;
+    console.log("req.body:", req.body);
+    console.log("req.file:", req.file);
+
+    await db.query(
+        'INSERT INTO messages (room_id, sender, content, media_url) VALUES (?, ?, ?, ?)',
+        [roomId, sender, content, mediaURL]
+    );
+
+    res.json({ message: 'sent', mediaURL });
 })
 
 
