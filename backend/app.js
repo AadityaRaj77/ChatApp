@@ -1,5 +1,7 @@
 require('dotenv').config()
 const express = require('express')
+const http = require('http')
+const { Server } = require('socket.io')
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const verifyToken = require("./verifyToken")
@@ -16,10 +18,28 @@ const db = mysql.createPool({
 
 cors = require('cors')
 const app = express()
-
+const server = http.createServer(app)
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+    }
+});
 app.use(cors())
 app.use(express.json())
 const port = 3000
+
+io.on('connection', socket => {
+    socket.on('join_room', room => {
+        socket.join(room);
+    })
+    socket.on('send_message', data => {
+        io.to(data.room).emit('receive_message', data);
+    })
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.id}`);
+    });
+})
+
 
 app.get('/', (req, res) => {
     res.send('Hello World!')
@@ -109,6 +129,6 @@ app.post('/messages', verifyToken, upload.single('media'), async (req, res) => {
 })
 
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Example app listening on port http://localhost:${port}`)
 })
