@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const verifyToken = require("./verifyToken")
 const upload = require('./uploads')
+const fs = require('fs')
 
 const mysql = require('mysql2')
 const db = mysql.createPool({
@@ -35,9 +36,27 @@ io.on('connection', socket => {
     socket.on('send_message', data => {
         io.to(data.room).emit('receive_message', data);
     })
+
+    socket.on('message-seen', async ({ messageId, viewer }) => {
+        try {
+            const [result] = await db.query(
+                `UPDATE messages SET seen = 1 WHERE id=?`,
+                [messageId]
+            );
+
+            io.emit('message-seen-confirmed', { messageId });
+        }
+        catch (err) {
+            console.error('Seen update failed', err);
+
+        }
+    })
+
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
     });
+
+
 })
 
 
@@ -127,6 +146,47 @@ app.post('/messages', verifyToken, upload.single('media'), async (req, res) => {
 
     res.json({ message: 'sent', mediaURL });
 })
+
+app.post('/messages/del', verifyToken, async (req, res) => {
+    const messageId = req.params.id
+    const currentRoom = req.room.roomname;
+    const currentSender = req.room.roomname;
+    try {
+        const [rows] = await db.query(
+            `SELECT * FROM messages WHERE id = ?`,
+            [messageId]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+        else {
+            const message = rows[0]
+            if (message.sender !== currentSender) {
+                return res.status(403).json({ error: 'Not authorized to delete this message' });
+            }
+            else {
+                if (message.media_url) {
+                    const mediaPath = path.join(__dirname, 'uploads', path.basename(message.media_url));
+
+                    fs.unlink(mediaPath, (err) => {
+                        if (err) {
+                            console.error('Failed to delete media file:', err);
+                        }
+                        else {
+                            console.log('Media file deleted:', mediaPath);
+                        }
+                    });
+                }
+                await db.query('DELETE FROM messages WHERE id = ?', [messageId]);
+            }
+        }
+        res.json({ message: 'Message deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
 
 
 server.listen(port, () => {
