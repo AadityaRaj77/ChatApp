@@ -17,7 +17,7 @@ function Login() {
             </button>
           </div>
           <div className="justify-self-center justify-items-center bg-pink-100 border-3 border-black p-8 px-12 space-y-4 rounded-b-xl w-full">
-            <div className="space-y-2 w-full">
+            <div className="space-y-2 w-full flex-col">
               <p>Room Name</p>
               <input
                 type="text"
