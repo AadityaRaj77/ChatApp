@@ -10,7 +10,7 @@ function App() {
       element: <Login />,
     },
     {
-      path: "/chat",
+      path: "/room/:roomId",
       element: <Chatroom />,
     },
   ]);
