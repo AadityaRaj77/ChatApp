@@ -3,10 +3,12 @@ import { useState } from "react";
 
 function Chatroom() {
   const [message, setMessage] = useState("");
+  const [media, setMedia] = useState(null);
   const [sendmessages, setSendmessages] = useState([]);
 
-  const handleSend = () => {
-    if (message.trim() !== "") {
+  const handleSend = async () => {
+    const token = localStorage.getItem("token");
+    if (message.trim() !== "" || media) {
       const msgObj = {
         id: Date.now(),
         text: message,
@@ -14,10 +16,50 @@ function Chatroom() {
         timestamp: new Date(),
       };
 
-      setSendmessages([...sendmessages, msgObj]);
+      const form = new FormData();
+      if (message.trim() !== "") form.append("content", message);
+      if (media) form.append("media", media);
+
+      const res = await fetch("http://localhost:3000/messages", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      const data = await res.json();
+      console.log("Message sent", data);
+
       setMessage("");
+      setMedia(null);
     }
   };
+  const handleDelete = async (messageId) => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch("http://localhost:3000/messages/del", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ messageId }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      } else {
+        alert("Delete failed: " + data.error);
+      }
+    } catch (error) {
+      console.error("Delete Error", error);
+    }
+  };
+
   return (
     <>
       <div className="relative bg-pink-300 h-screen">
@@ -30,10 +72,25 @@ function Chatroom() {
               key={msg.id}
               className="w-fit max-w-[50%] whitespace-normal break-words bg-pink-600 p-4 rounded-3xl text-pink-200"
             >
-              <p>{msg.text}</p>
+              <p>{msg.sender}:</p>
+              {msg.content && <p>{msg.content}</p>}
+              {msg.media_url && (
+                <img
+                  src={`http://localhost:3000${msg.media_url}`}
+                  alt="media"
+                />
+              )}
               <span className="text-sm text-pink-300">
                 {new Date(msg.timestamp).toLocaleTimeString()}
               </span>
+              {msg.sender === user._id && (
+                <button
+                  onClick={() => handleDelete(msg._id)}
+                  className="text-red-500 ml-2 hidden group-hover:block"
+                >
+                  del
+                </button>
+              )}
             </div>
           ))}
         </div>

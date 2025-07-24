@@ -148,7 +148,7 @@ app.post('/messages', verifyToken, upload.single('media'), async (req, res) => {
 })
 
 app.post('/messages/del', verifyToken, async (req, res) => {
-    const messageId = req.params.id
+    const messageId = req.body.messageId
     const currentRoom = req.room.roomname;
     const currentSender = req.room.roomname;
     try {
